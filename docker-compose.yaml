@@ -1,0 +1,63 @@
+networks:
+  db-network:
+    driver: bridge
+
+services:
+  db-cache:
+    image: redis:latest
+    ports:
+      - 6379:6379
+    volumes:
+      - db_redis_cache:/var/lib/redis
+    command: ["redis-server","--save","", "--appendonly","no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - db-network
+
+  postgres:
+    image: postgres:17
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_MAIN_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_MAIN_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_MAIN_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    networks:
+      - db-network
+
+  database-managment-api:
+    build:
+      context: ./db-managment-api
+      dockerfile: Dockerfile
+    command: sh -c "uvicorn app:app --host 0.0.0.0 --port 8000 --reload"
+    env_file:
+      - ./db-managment-api/.env
+    ports:
+      - 8000:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./db-managment-api:/app
+    environment:
+      - DATABASE_URL=${POSTGRES_DB_URL}
+    networks:
+      - popacta-network
+
+volumes:
+  db_redis_cache:
+  postgres_data:
