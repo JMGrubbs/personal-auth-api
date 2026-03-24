@@ -52,8 +52,31 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     volumes:
       - ./app:/app
+    networks:
+      - db-network
+
+  database-managment-mcp:
+    build:
+      context: ./mcp
+      dockerfile: Dockerfile
+    ports:
+      - 8001:8001
+    working_dir: /mcp
+    env_file:
+      - ./mcp/.env
+    volumes:
+      - ./mcp:/mcp
+    depends_on:
+      database-managment-api:
+        condition: service_healthy
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload
     networks:
       - db-network
 
