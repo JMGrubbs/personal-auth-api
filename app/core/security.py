@@ -23,7 +23,7 @@ def create_access_token(
     expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
     payload: dict[str, Any] = {
         "sub": subject,
-        "exp": expire,
+        "exp": expire.timestamp(),
         "iat": datetime.now(timezone.utc),
         "jti": str(uuid4()),
     }

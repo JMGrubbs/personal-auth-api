@@ -52,6 +52,8 @@ def run_migrations_offline() -> None:
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
+        include_schemas=True,
+        version_table_schema="auth",
         dialect_opts={"paramstyle": "named"},
     )
 
@@ -60,7 +62,12 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        include_schemas=True,
+        version_table_schema="auth"
+    )
 
     with context.begin_transaction():
         context.run_migrations()

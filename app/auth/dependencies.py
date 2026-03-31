@@ -1,30 +1,44 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 
 from core.security import oauth2_scheme, decode_access_token
 from db.dependencies import get_session
 from repositories.user import get_user_by_id
 from repositories.jwt_token_blacklist import is_token_blacklisted_db, insert_blacklisted_token
+from cache.helpers import CacheHelper
+from cache.dependencies import get_cache_helper
 from models.user import User
 
 async def check_token_blacklist(
     token: str,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession,
+    cache: CacheHelper,
 ) -> bool:
     try:
         payload = decode_access_token(token)
         token_jti = payload.get("jti")
-        if not token_jti:
+
+        exp = payload.get("exp")
+        exp = int(exp) if exp is not None else 0
+
+        if not token_jti or exp <= int(datetime.utcnow().timestamp()):
             return True
     except Exception:
         return True
 
-    return await is_token_blacklisted_db(session, token_jti)
+    blacklist_status = await is_token_blacklisted_db(
+        session=session,
+        jti=token_jti,
+        cache=cache,
+    )
+    return blacklist_status
 
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     session: AsyncSession = Depends(get_session),
+    cache: CacheHelper = Depends(get_cache_helper),
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -32,7 +46,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    token_blacklisted = await check_token_blacklist(token, session)
+    token_blacklisted = await check_token_blacklist(token=token, session=session, cache=cache)
     if token_blacklisted:
         raise credentials_exception
 
@@ -72,6 +86,7 @@ async def require_admin(
 async def blacklist_current_token(
     token: str = Depends(oauth2_scheme),
     session: AsyncSession = Depends(get_session),
+    cache: CacheHelper = Depends(get_cache_helper),
 ) -> bool:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -87,5 +102,9 @@ async def blacklist_current_token(
     except Exception as e:
         raise credentials_exception
 
-    insert_blacklisted_token_status = await insert_blacklisted_token(session, token_jti)
+    insert_blacklisted_token_status = await insert_blacklisted_token(
+        session=session,
+        jti=token_jti,
+        cache=cache,
+    )
     return bool(insert_blacklisted_token_status)

@@ -9,6 +9,7 @@ async def get_user_by_id(session: AsyncSession, user_id: int) -> User | None:
     )
     return result.scalar_one_or_none()
 
+
 async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
     result = await session.execute(
         select(User).where(
@@ -18,6 +19,7 @@ async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
     )
     return result.scalar_one_or_none()
 
+
 async def create_user(session: AsyncSession, email: str, hashed_password: str) -> User:
     new_user = User(email=email, hashed_password=hashed_password)
     session.add(new_user)
@@ -25,16 +27,19 @@ async def create_user(session: AsyncSession, email: str, hashed_password: str) -
     await session.refresh(new_user)
     return new_user
 
+
 async def update_user(session: AsyncSession, user: User) -> User:
     session.add(user)
     await session.commit()
     await session.refresh(user)
     return user
 
+
 async def delete_user(session: AsyncSession, user: User) -> bool:
     await session.delete(user)
     await session.commit()
     return True
+
 
 async def deactivate_user(session: AsyncSession, user: User) -> User:
     user.is_active = False
@@ -43,11 +48,13 @@ async def deactivate_user(session: AsyncSession, user: User) -> User:
     await session.refresh(user)
     return user
 
+
 async def check_user_exists(session: AsyncSession, email: str) -> bool:
     result = await session.execute(
         select(User).where(User.email == email)
     )
     return result.scalar_one_or_none() is not None
+
 
 async def login_user(session: AsyncSession, email: str, password: str) -> User | None:
     user = await get_user_by_email(session, email)
@@ -58,9 +65,11 @@ async def login_user(session: AsyncSession, email: str, password: str) -> User |
         return None
     return None
 
+
 async def is_user_admin(session: AsyncSession, user_id: int) -> bool:
     user = await get_user_by_id(session, user_id)
     return user.is_admin if user else False
+
 
 async def make_user_admin(session: AsyncSession, user: User) -> User:
     if not user.is_admin:
