@@ -1,21 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Any
 
-from auth.dependencies import get_current_active_user, blacklist_current_token
+from models.user import User
+from schemas.user import UserCreate, DeleteUser
+from auth.dependencies import get_current_active_user
 from repositories.user import (
     create_user,
     check_user_exists,
-    login_user,
     deactivate_user,
     delete_user,
     get_user_by_email,
     make_user_admin,
 )
-from models.user import User
 from db.dependencies import get_session
-from schemas.user import UserCreate, UserLogin, DeleteUser
-from core.security import hash_password, create_access_token
+from core.security import hash_password
 
 router = APIRouter(tags=["users"])
 
@@ -50,33 +48,6 @@ async def create_new_user_route(
     )
 
     return {"message": f"User {newly_created_user.email} created successfully"}
-
-
-@router.get("/login")
-async def login_route(
-    UserLogin: UserLogin,
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, str]:
-    logged_in_user = await login_user(
-        session,
-        UserLogin.email,
-        UserLogin.password,
-    )
-    if not logged_in_user:
-        return {"message": "Invalid email or password"}
-
-    user_token = create_access_token(subject=str(logged_in_user.id))
-    return {"token": user_token}
-
-
-@router.get("/token-check")
-async def token_check_route(
-    current_user: User = Depends(get_current_active_user),
-) -> dict[str, Any]:
-    return {
-        "message": f"Token is valid for user {current_user.email}",
-        "status": True,
-    }
 
 
 @router.delete("/delete")
@@ -118,17 +89,3 @@ async def make_admin_route(
         elif subject_user_profile is None:
             return {"message": "User with this email does not exist"}
     raise HTTPException(status_code=403, detail="Only admins can make other users admins")
-
-
-@router.post("/logout")
-async def logout_route(
-    revoked: bool = Depends(blacklist_current_token),
-) -> dict[str, str]:
-    return {"message": "Successfully logged out"}
-
-
-@router.get("/is-admin")
-async def is_admin_route(
-    current_user: User = Depends(get_current_active_user),
-) -> dict[str, bool]:
-    return {"is_admin": current_user.is_admin}
