@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Any
 
 from models.user import User
-from schemas.user import UserLogin
+from schemas.user import UserLogin, AuthorizedUser
 from core.security import create_access_token
 from auth.dependencies import get_current_active_user, blacklist_current_token
 from db.dependencies import get_session
@@ -11,11 +11,11 @@ from repositories.user import login_user
 
 router = APIRouter(tags=["auth"])
 
-@router.get("/login")
+@router.post("/login")
 async def login_route(
     UserLogin: UserLogin,
     session: AsyncSession = Depends(get_session),
-) -> dict[str, str]:
+) -> dict[str, str] | AuthorizedUser:
     logged_in_user = await login_user(
         session,
         UserLogin.email,
@@ -26,7 +26,26 @@ async def login_route(
 
     user_token = create_access_token(subject=str(logged_in_user.id))
 
-    return {"token": user_token}
+    auth_user = AuthorizedUser(
+        id=str(logged_in_user.id),
+        username=logged_in_user.email,
+        is_admin=logged_in_user.is_admin,
+        token=user_token,
+    )
+
+    return auth_user
+
+@router.get("/me")
+async def read_me_route(
+    current_user: User = Depends(get_current_active_user),
+) -> dict[str, str | bool | int]:
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "is_admin": current_user.is_admin,
+        "username": current_user.email,
+    }
+
 
 @router.get("/token-check")
 async def token_check_route(

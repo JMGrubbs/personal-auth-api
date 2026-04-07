@@ -17,18 +17,6 @@ from core.security import hash_password
 
 router = APIRouter(tags=["users"])
 
-@router.get("/me")
-async def read_me_route(
-    current_user: User = Depends(get_current_active_user),
-) -> dict[str, str | bool | int]:
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "is_active": current_user.is_active,
-        "is_admin": current_user.is_admin,
-    }
-
-
 @router.post("/create")
 async def create_new_user_route(
     new_user: UserCreate,

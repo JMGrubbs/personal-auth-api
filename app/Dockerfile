@@ -3,7 +3,9 @@ FROM python:3.14-slim
 WORKDIR /app
 
 # Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get -o Acquire::ForceIPv4=true update \
+ && apt-get install -y curl \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --upgrade pip
