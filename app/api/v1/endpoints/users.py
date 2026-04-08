@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +22,7 @@ router = APIRouter(tags=["users"])
 async def create_new_user_route(
     new_user: UserCreate,
     session: AsyncSession = Depends(get_session),
-) -> dict[str, bool]:
+) -> dict[str, bool | str | uuid.UUID]:
 
     if await check_user_exists(session, new_user.email):
         return {"message": "User with this email already exists"}
@@ -38,7 +39,7 @@ async def create_new_user_route(
     if not newly_created_user:
         raise HTTPException(status_code=400, detail="User with this email already exists")
 
-    return {"ok": True}
+    return {"ok": True, "user_id": newly_created_user.id}
 
 
 @router.delete("/delete")
